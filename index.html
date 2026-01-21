@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CO₂-Rechner Kostenprognose für Ihr Heizsystem</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ----- Basis ----- */
+    *, *::before, *::after { box-sizing: border-box; }
+    .main-wrap, .card, .chart-container, .title-banner { min-width: 0; }
+    img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      color: #333;
+    }
+    .main-wrap {
+      max-width: 800px;     /* Globale maximale Breite */
+      margin: 0 auto;       /* zentriert */
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0;
+    }
+
+    /* ----- Titel-Balken ----- */
+    .title-banner {
+      background: #B2BEB0;
+      color: #fff;
+      padding: 1.8rem 0.6rem 0.8rem 0.6rem;
+      font-size: 2.1rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 0 auto;
+      border-radius: 0;
+      width: 100%;           /* innerhalb .main-wrap */
+      box-sizing: border-box;
+      position: relative;
+    }
+    .title-banner small {
+      display: block;
+      font-size: 1.2rem;
+      font-weight: 400;
+      margin-top: 0.6rem;
+      color: #f5f5f5;
+      letter-spacing: 0;
+    }
+    .title-banner::after {
+      content: "Stand 07.2025";
+      position: absolute;
+      top: 0.6rem;
+      right: 0.9rem;
+      font-size: 0.95rem;
+      color: #f5f5f5;
+      font-weight: 400;
+    }
+
+    /* ----- Karten/Container ----- */
+    .card {
+      background: #fff;
+      padding: 1.2rem 0.9rem 1.2rem 0.9rem;
+      border-radius: 0;
+      margin: 0 0 1.2rem 0;
+      width: 100%;
+      box-sizing: border-box;
+      position: relative;
+      box-shadow: none;
+      border: none;
+    }
+
+    /* Ergebnis-Box (volle Breite innerhalb 800px) */
+    #ergebnis-summary {
+      color: #222 !important;
+      font-weight: 400 !important;
+      font-size: 1.1rem;
+      background: #B2BEB0;
+      border-radius: 0;
+      padding: 0.9rem 1.3rem;
+      margin-top: 0.6rem;
+      cursor: default;
+      user-select: none;
+      box-shadow: none;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      display: block;
+      line-height: 1.33;
+      margin-left: 0;       /* keine Viewport-Offsets */
+    }
+
+    /* CO2 Vergleichsbox rechteckig innerhalb 800px */
+    #co2-verzicht-vergleich .co2-card {
+      width: 100%;
+      padding: 1rem 1.3rem;
+      background: #B2BEB0;
+      border-radius: 0;
+      margin: 0;
+      box-sizing: border-box;
+      text-align: center;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+      cursor: default;
+      user-select: none;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    #co2-verzicht-vergleich .co2-card:hover {
+      background: #9aaea1;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    #co2-verzicht-summary {
+      padding: 0;
+      margin-bottom: 0.7rem;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-size: 1.1rem;
+      font-weight: 400;
+      line-height: 1.33;
+      color: #222;
+    }
+    #co2-verzicht-haupttext {
+      font-size: 1.01rem;
+      font-weight: 600;
+      margin: 0.4rem 0 0.1rem 0;
+      color: #226423;
+      line-height: 1.33;
+    }
+    #co2-verzicht-budget {
+      font-size: 0.84rem;
+      font-weight: 400;
+      color: #226423;
+      margin-top: 0.35rem;
+      padding: 0;
+      min-height: 18px;
+      letter-spacing: 0.1px;
+      line-height: 1.25;
+    }
+
+    /* ----- Buttons / Inputs ----- */
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4em;
+      width: 100%;
+      margin: 1.2rem 0 0 0;
+      padding: 0.9rem 0;
+      font-size: 1rem;
+      background: #B2BEB0;
+      color: #222;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.6rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: none;
+      text-align: center;
+      user-select: none;
+    }
+    .toggle-btn:hover {
+      background: #9aaea1;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      color: #111;
+    }
+    .toggle-btn:active, .toggle-btn.active {
+      background: #7f927f;
+      color: #fff;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .toggle-btn::after {
+      content: "→";
+      font-weight: 700;
+      font-size: 1.2rem;
+      line-height: 1;
+      margin-left: 0.6rem;
+      transition: transform 0.3s ease;
+    }
+    .toggle-btn:hover::after {
+      transform: translateX(4px);
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 1.06rem;
+      margin-bottom: 0.12rem;
+      color: #26751c;
+    }
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid #B2BEB0;
+      border-radius: 0;
+      box-sizing: border-box;
+      font-size: 1.08rem;
+      background: #fff;
+      color: #222;
+    }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] { -moz-appearance: textfield; }
+    .pv-hint {
+      color: #26751c;
+      font-size: 0.98rem;
+      margin-top: -0.8rem;
+      margin-bottom: 0.8rem;
+    }
+
+    /* ----- Chart ----- */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2.2;
+      background: #fff;
+      border-radius: 0.7rem;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+    .diagramm-title {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #39943a;
+      text-align: center;
+      margin: 0.5rem 0 0.5rem 0;
+    }
+
+    /* ----- Legende/Infos ----- */
+    .kurz-kompakt {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      font-size: 0.87rem;
+      gap: 0.1em 1.3em;
+      margin: 14px 0 10px 0;
+      justify-content: flex-start;
+      text-align: left;
+    }
+    .kurz-kompakt span {
+      white-space: nowrap;
+      color: #555;
+      margin: 0.1em 0;
+      padding: 0;
+      line-height: 1.33;
+      white-space: normal !important;
+    }
+    .kurz-kompakt strong {
+      color: #39943a;
+      font-weight: 600;
+    }
+    #co2-baum-icons {
+      margin: 0.6rem 0 0.2rem 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 0.2em;
+      flex-wrap: wrap;
+    }
+    #co2-baum-icons svg {
+      width: 48px;
+      height: 38px;
+    }
+    #co2-baum-icons svg.einzel {
+      width: 25px;
+      height: 28px;
+    }
+    #co2-baum-icons .plus {
+      font-size: 1.2rem;
+      margin-left: 0.12em;
+      color: #39943a;
+    }
+
+    /* ---------- MEDIA QUERY: MOBILE ---------- */
+    @media (max-width:600px){
+      html, body {
+        width: 100%;
+        overflow-x: hidden;
+      }
+      .main-wrap {
+        width: 100% !important;
+        max-width: 100% !important; /* auf kleinen Screens darf es vollflächig */
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .card, .co2-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0.2rem !important;
+        padding-right: 0.2rem !important;
+      }
+      .chart-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        aspect-ratio: 1.10 !important;
+        margin: 0.1rem !important;
+        border-radius: 0.7rem;
+        box-sizing: border-box;
+        overflow: hidden !important;
+        padding: 0 !important;
+      }
+      .chart-container canvas {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        height: 100% !important;
+        display: block;
+        margin: 0 auto !important;
+      }
+      #ergebnis-summary,
+      #co2-verzicht-summary {
+        font-size: 0.98rem !important;
+        line-height: 1.35 !important;
+        margin-bottom: 0.08rem !important;
+      }
+      #co2-verzicht-haupttext {
+        font-size: 0.90rem !important;
+        line-height: 1.33 !important;
+        margin-top: 0.06rem !important;
+        margin-bottom: 0.07rem !important;
+      }
+      #co2-verzicht-budget {
+        font-size: 0.74rem !important;
+        line-height: 1.3 !important;
+        margin-top: 0.17rem !important;
+      }
+      #co2-baum-icons svg {
+        width: 38px !important;
+        height: 29px !important;
+      }
+      #co2-baum-icons svg.einzel {
+        width: 20px !important;
+        height: 22px !important;
+      }
+      .kurz-kompakt {
+        font-size: 0.74rem !important;
+      }
+      .co2-card {
+        padding-top: 0rem !important;
+        padding-bottom: 0.5rem !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-wrap">
+    <div class="title-banner">
+      CO₂-Kostenrechner: Prognose
+      <small>(für Ihr Heizsystem auf 20 Jahre)</small>
+    </div>
+
+    <div class="card">
+      <label for="system">Heizsystem</label>
+      <select id="system"></select>
+
+      <label for="einheit">Einheit</label>
+      <select id="einheit"></select>
+
+      <label for="verbrauch">Jahresverbrauch (Brennstoffverbrauch pro Jahr)</label>
+      <input type="number" id="verbrauch" value="25000" min="1" step="100"/>
+
+      <label for="startjahr">Ab welchem Jahr soll berechnet werden?</label>
+      <select id="startjahr"></select>
+
+      <label for="pv">Photovoltaik-Ertrag im Dezember [kWh]</label>
+      <input type="number" id="pv" value="0" min="0" step="10"/>
+
+      <div class="pv-hint">
+        Optimiert den Verbrauch für Wärmepumpen<br>
+        Schätzung: Eine kleine 5 kWp-Anlage auf dem Dach liefert im Dezember etwa <b>150 kWh</b>.
+      </div>
+
+      <button type="button" class="toggle-btn" onclick="scrollToDiagrammTitle()">ERGEBNIS</button>
+    </div>
+
+    <div class="card" style="padding-top:0.2rem;">
+      <div id="diagramm-anchor"></div>
+      <div class="diagramm-title" id="diagramm-title">Kosten für CO₂-Abgabe auf 20 Jahre</div>
+
+      <div class="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <button id="toggle-mode" type="button" class="toggle-btn">CO₂-Emission anzeigen</button>
+      <button id="toggle-mode-co2" type="button" class="toggle-btn" style="display:none; margin-top:1.2rem;">Kosten anzeigen</button>
+
+      <div class="kurz-kompakt" id="legend-costs">
+        <span><strong>Öl</strong> = Ölheizung</span>
+        <span><strong>Gas</strong> = Gasheizung</span>
+        <span><strong>FW-DE</strong> = Fernwärme in Deutschland</span>
+        <span><strong>FW-TÜ</strong> = Fernwärme in Tübingen</span>
+        <span><strong>Pellet*</strong> = Pelletheizung*</span>
+        <span><strong>LWWP</strong> = Luft-Wasser-Wärmepumpe</span>
+        <span><strong>EWWP</strong> = Erd-Wasser-Wärmepumpe</span>
+      </div>
+
+      <div class="kurz-kompakt" id="legend-co2" style="display:none;">
+        <span><strong>Öl</strong> = Ölheizung</span>
+        <span><strong>Gas</strong> = Gasheizung</span>
+        <span><strong>FW-DE</strong> = Fernwärme in Deutschland</span>
+        <span><strong>FW-TÜ</strong> = Fernwärme in Tübingen</span>
+        <span><strong>Pellet*</strong> = Pelletheizung*</span>
+        <span><strong>LWWP</strong> = Luft-Wasser-Wärmepumpe</span>
+        <span><strong>EWWP</strong> = Erd-Wasser-Wärmepumpe</span>
+      </div>
+
+      <div id="ergebnis-summary"></div>
+
+      <div id="co2-verzicht-vergleich" style="display:none;">
+        <div class="co2-card">
+          <div id="co2-verzicht-summary"></div>
+          <div class="baum-icons" id="co2-baum-icons"></div>
+          <div id="co2-verzicht-haupttext"></div>
+          <div id="co2-verzicht-budget"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ----- Daten ----- */
+const CO2_PREISE = [55, 60, 80, 90, 100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 225, 240, 255, 270, 285, 300, 310, 320, 330, 340, 350];
+const CO2_STROM  = [0.332,0.258,0.201,0.157,0.122,0.095,0.074,0.058,0.045,0.035,0.027,0.021,0.016,0.013,0.010,0.008,0.006,0.005,0.004,0.003,0.002,0.002,0.001,0.001,0.001,0.001];
+const CO2_FW_DE  = [0.28,0.266,0.252,0.238,0.224,0.210,0.196,0.182,0.168,0.154,0.140,0.126,0.112,0.098,0.084,0.070,0.056,0.042,0.028,0.014,0.000,0.000,0.000,0.000,0.000,0.000];
+const CO2_FW_TUE = [0.127,0.119,0.110,0.102,0.093,0.085,0.076,0.068,0.059,0.051,0.042,0.034,0.025,0.017,0.008,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000];
+const PV_PROFIL  = [0.05,0.06,0.07,0.10,0.11,0.12,0.13,0.14,0.10,0.06,0.05,0.04];
+const WP_PROFIL  = [0.16,0.13,0.11,0.09,0.06,0.03,0.02,0.02,0.04,0.08,0.12,0.14];
+
+const SYSTEME = [
+  { name: "Ölheizung", abk: "Öl",  einheiten: ["kWh", "Liter"], co2_faktor: 0.266, faktor: 0.909090909, umrechnung: v => ({"kWh": +v,"Liter": +v * 10}) },
+  { name: "Gasheizung", abk: "Gas", einheiten: ["kWh", "m³"],   co2_faktor: 0.201, faktor: 0.930232558, umrechnung: v => ({"kWh": +v,"m³": +v * 10.6}) },
+  { name: "Fernwärme-Deutschland im Ø", abk: "FW-DE", einheiten: ["kWh"], co2_faktor: CO2_FW_DE,  faktor: 1,    umrechnung: v => ({"kWh": +v}) },
+  { name: "Fernwärme-Tübingen im Ø",    abk: "FW-TÜ", einheiten: ["kWh"], co2_faktor: CO2_FW_TUE, faktor: 1,    umrechnung: v => ({"kWh": +v}) },
+  { name: "Pelletheizung", abk: "Pellet*", einheiten: ["kWh", "kg"], co2_faktor: 0.036, faktor: 0.869565217, umrechnung: v => ({"kWh": +v,"kg": +v * 4.9}) },
+  { name: "Luftwärmepumpe", abk: "LWWP", einheiten: ["kWh"], co2_faktor: CO2_STROM, faktor: 3.25, umrechnung: v => ({"kWh": +v}) },
+  { name: "Erdwärmepumpe", abk: "EWWP",  einheiten: ["kWh"], co2_faktor: CO2_STROM, faktor: 4.25, umrechnung: v => ({"kWh": +v}) }
+];
+
+/* ----- Helpers ----- */
+function scrollToDiagrammTitle() {
+  var elem = document.getElementById('diagramm-anchor');
+  if (elem) elem.scrollIntoView({behavior:'smooth'});
+}
+function updateStartjahr() {
+  let s = "";
+  for(let i=2025; i<=2031; i++) s += `<option value="${i}">${i}</option>`;
+  document.getElementById('startjahr').innerHTML = s;
+}
+function updateSystem() {
+  let s = "";
+  SYSTEME.forEach((sys,i) => { s += `<option value="${i}">${sys.name}</option>`; });
+  document.getElementById('system').innerHTML = s;
+}
+function updateEinheit() {
+  let idx = +document.getElementById('system').value;
+  let eSel = document.getElementById('einheit');
+  let einh = SYSTEME[idx].einheiten;
+  let s = "";
+  einh.forEach(e => { s += `<option value="${e}">${e}/Jahr</option>`; });
+  eSel.innerHTML = s;
+}
+
+/* ----- Rechnen ----- */
+function berechneKostenUndCO2() {
+  const sysIndex = +document.getElementById('system').value;
+  const system = SYSTEME[sysIndex];
+  const einheit = document.getElementById('einheit').value;
+
+  // Punkte als Tausender entfernen, Komma als Dezimalpunkt
+  let verbrauchRaw = document.getElementById('verbrauch').value.toString();
+  verbrauchRaw = verbrauchRaw.replace(/\./g, '').replace(',', '.');
+  const verbrauch = parseFloat(verbrauchRaw) || 0;
+
+  const startjahr = parseInt(document.getElementById('startjahr').value) || 2025;
+  const pv_dez   = parseFloat(document.getElementById('pv').value.toString().replace(',','.')) || 0;
+
+  // Umrechnung auf kWh-Eingabe je Einheit
+  let verbrauch_kWh = 0;
+  if (system.umrechnung && system.umrechnung(verbrauch)[einheit]) {
+    verbrauch_kWh = system.umrechnung(verbrauch)[einheit];
+  } else {
+    verbrauch_kWh = verbrauch;
+  }
+
+  const waermeerzeugung = verbrauch_kWh * system.faktor;
+  const kosten = [], co2 = [];
+
+  SYSTEME.forEach((s) => {
+    const faktor = s.faktor;
+    const endenergie = waermeerzeugung / faktor;
+
+    if ((s.name === "Luftwärmepumpe" || s.name === "Erdwärmepumpe") && pv_dez > 0) {
+      const jaz = s.faktor;
+      const strom_jahr = endenergie / jaz;
+      const pv_jahr = pv_dez / 0.04; // Dez = 4% → Jahresertrag
+      let kostenSum = 0, co2Sum = 0;
+
+      for (let y = 0; y < 20; y++) {
+        const jahrIdx = (startjahr - 2025) + y;
+        if (jahrIdx >= CO2_PREISE.length) break;
+
+        let netzbezug = 0;
+        for (let m = 0; m < 12; m++) {
+          let wp_monat = strom_jahr * WP_PROFIL[m];
+          let pv_monat = pv_jahr * PV_PROFIL[m];
+          netzbezug += Math.max(0, wp_monat - Math.min(wp_monat, pv_monat));
+        }
+        let co2kg = netzbezug * s.co2_faktor[jahrIdx];
+        co2Sum   += co2kg;
+        kostenSum += (co2kg / 1000) * CO2_PREISE[jahrIdx];
+      }
+      kosten.push(kostenSum);
+      co2.push(co2Sum);
+
+    } else {
+      let sum = 0, co2sum = 0;
+      for (let y = 0; y < 20; y++) {
+        const jahrIdx = (startjahr - 2025) + y;
+        if (jahrIdx >= CO2_PREISE.length) break;
+
+        let co2kg = 0;
+        if (Array.isArray(s.co2_faktor)) {
+          if (s.name.includes("Wärmepumpe")) {
+            const jaz = s.faktor;
+            const strom = endenergie / jaz;
+            co2kg = strom * s.co2_faktor[jahrIdx];
+          } else {
+            co2kg = endenergie * s.co2_faktor[jahrIdx];
+          }
+        } else {
+          co2kg = endenergie * (s.co2_faktor || 0);
+        }
+        co2sum += co2kg;
+        sum    += (co2kg / 1000) * CO2_PREISE[jahrIdx];
+      }
+      kosten.push(sum);
+      co2.push(co2sum);
+    }
+  });
+
+  return { kosten, co2 };
+}
+
+/* ----- Darstellung ----- */
+function getColors(arr, sysIndex) {
+  let sorted = arr.map((val, i) => ({val, i})).sort((a, b) => a.val - b.val);
+  let colorArr = new Array(arr.length).fill('#558ED5');
+  let gruen = '#92D050', rot = '#FF0000', beige = '#EBD59F';
+  if (sorted.length > 0) colorArr[sorted[0].i] = gruen;
+  if (sorted.length > 1) colorArr[sorted[1].i] = gruen;
+  if (sorted.length > 1) colorArr[sorted[sorted.length - 1].i] = rot;
+  if (sorted.length > 2) colorArr[sorted[sorted.length - 2].i] = rot;
+  colorArr[sysIndex] = beige;
+  return colorArr;
+}
+
+let chart;
+let currentMode = "kosten";
+
+function updateChart() {
+  const { kosten, co2 } = berechneKostenUndCO2();
+  const sysIndex = +document.getElementById('system').value;
+  const ctx = document.getElementById('chart').getContext('2d');
+  if(chart) chart.destroy();
+
+  const isMobile = window.innerWidth <= 600;
+  const datalabelFontSize = isMobile ? 12 : 16;
+  const tickFontSize = isMobile ? 11 : 14;
+
+  let title = (currentMode === "kosten")
+    ? "Kosten für  CO₂-Abgabe auf 20 Jahre"
+    : "CO₂-Emission auf 20 Jahre";
+
+  document.getElementById('diagramm-title').textContent = title;
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: SYSTEME.map(s => s.abk),
+      datasets: [{
+        label: currentMode === "kosten" ? "CO₂-Kosten in 20 Jahren (€)" : "CO₂-Emission in 20 Jahren (kg)",
+        data: currentMode === "kosten" ? kosten.map(x => Math.round(x)) : co2.map(x => Math.round(x)),
+        backgroundColor: getColors(currentMode === "kosten" ? kosten : co2, sysIndex)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { left: 0, right: 0, top: 0, bottom: 0 }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y.toLocaleString("de-DE") + (currentMode === "kosten" ? " €" : " kg")
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: false },
+          ticks: {
+            font: { size: tickFontSize },
+            callback: function(value) {
+              return value.toLocaleString("de-DE") + (currentMode === "kosten" ? " €" : " kg");
+            }
+          }
+        },
+        x: {
+          ticks: { font: { size: isMobile ? 13 : 15 } },
+          grid: { display: false }
+        }
+      }
+    },
+    plugins: [
+      {
+        id: 'customLabelAdjust',
+        afterDatasetsDraw(chart) {
+          const ctx = chart.ctx;
+          const dataset = chart.data.datasets[0];
+          const meta = chart.getDatasetMeta(0);
+          dataset.data.forEach((value, index) => {
+            if ((currentMode === "kosten" && value < 200) || (currentMode === "co2" && value < 600)) {
+              const bar = meta.data[index];
+              const x = bar.x;
+              const y = bar.y;
+              ctx.save();
+              ctx.fillStyle = '#222';
+              ctx.font = `${datalabelFontSize}px Segoe UI, Arial, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText((currentMode === "kosten"
+                            ? value.toLocaleString("de-DE") + ' €'
+                            : value.toLocaleString("de-DE") + ' kg'), x, y - 5);
+              ctx.restore();
+            }
+          });
+        }
+      }
+    ]
+  });
+
+  // Umschalter / Sichtbarkeit
+  if(currentMode === "kosten") {
+    document.getElementById('toggle-mode').style.display = "block";
+    document.getElementById('toggle-mode-co2').style.display = "none";
+    document.getElementById('ergebnis-summary').style.display = "block";
+    document.getElementById('co2-verzicht-vergleich').style.display = "none";
+    document.getElementById('legend-costs').style.display = "flex";
+    document.getElementById('legend-co2').style.display = "none";
+  } else {
+    document.getElementById('toggle-mode').style.display = "none";
+    document.getElementById('toggle-mode-co2').style.display = "block";
+    document.getElementById('ergebnis-summary').style.display = "none";
+    document.getElementById('co2-verzicht-vergleich').style.display = "block";
+    document.getElementById('legend-costs').style.display = "none";
+    document.getElementById('legend-co2').style.display = "flex";
+  }
+
+  // CO2-Infobox
+  if (currentMode === "co2") {
+    const startjahr = document.getElementById('startjahr').value;
+    const sysName = SYSTEME[sysIndex].name;
+    const val = Math.round(co2[sysIndex]).toLocaleString("de-DE");
+    document.getElementById('co2-verzicht-summary').innerHTML =
+      `Ihr geschätzter <span style="color:#226423; font-weight:600;">CO₂-Ausstoß</span> in den nächsten <span style="color:#226423; font-weight:600;">20 Jahren</span> ab <span style="color:#226423; font-weight:600;">${startjahr}</span> für Ihr Heizsystem <span style="color:#226423; font-weight:600;">${sysName}</span> beträgt ca. <span style="color:#226423; font-weight:600;">${val} kg</span>`;
+
+    const co2_gesamt = Math.round(co2[sysIndex]);
+    const co2_pro_baum = 22;
+    let baumAnzahl = Math.max(1, Math.round(co2_gesamt / co2_pro_baum / 20));
+    const baumText = `${baumAnzahl === 1 ? "1 Baum" : baumAnzahl + " Bäume"}`;
+    const baumGruppeSVG = `
+      <svg width="41" height="34" viewBox="0 0 56 46">
+        <ellipse cx="17" cy="21" rx="11" ry="11" fill="#a3e07f" stroke="#39943a" stroke-width="1.3"/>
+        <ellipse cx="17" cy="27" rx="7" ry="7" fill="#c3efb1" stroke="#39943a" stroke-width="1"/>
+        <rect x="13" y="32" width="5" height="11" rx="2" fill="#b18d68"/>
+        <ellipse cx="39" cy="20" rx="11" ry="11" fill="#a3e07f" stroke="#39943a" stroke-width="1.3"/>
+        <ellipse cx="39" cy="26" rx="7" ry="7" fill="#c3efb1" stroke="#39943a" stroke-width="1"/>
+        <rect x="36" y="31" width="5" height="11" rx="2" fill="#b18d68"/>
+        <ellipse cx="28" cy="16" rx="13" ry="13" fill="#5fa954" stroke="#39943a" stroke-width="2"/>
+        <ellipse cx="28" cy="23" rx="10" ry="9" fill="#75c867" stroke="#39943a" stroke-width="1.2"/>
+        <rect x="25" y="28" width="6" height="14" rx="2" fill="#b18d68"/>
+      </svg>
+    `;
+    document.getElementById('co2-baum-icons').innerHTML =
+      baumGruppeSVG + baumGruppeSVG + baumGruppeSVG;
+    document.getElementById('co2-verzicht-haupttext').innerHTML =
+      `Der <span id="baum-text"><strong style="color:#226423;">CO₂-Ausstoß Ihrer Heizung</strong> entspricht der Menge an CO₂, die <strong style="color:#226423;">${baumText}</strong> im Laufe von 20 Jahren binden.</span>`;
+    document.getElementById('co2-verzicht-budget').innerHTML =
+      `<span id="baum-budget" class="co2-green">(Ein Baum bindet im Schnitt rund 22 kg CO₂ pro Jahr)</span>`;
+  }
+
+  // Ergebnis-Summary (Kosten)
+  updateErgebnisSummary(currentMode === "kosten" ? kosten : co2, sysIndex, currentMode === "kosten" ? "€" : "kg", kosten);
+}
+
+function updateErgebnisSummary(arr, sysIndex, unit, kostenArr) {
+  const startjahr = document.getElementById('startjahr').value;
+  const sysName = SYSTEME[sysIndex].name;
+  const val = Math.round(arr[sysIndex]);
+  const euro = Math.round(kostenArr ? kostenArr[sysIndex] : 0);
+
+  let extraText = "";
+  if (
+    (sysName === "Ölheizung" || sysName === "Gasheizung") &&
+    euro > 10000 &&
+    unit === "€"
+  ) {
+    extraText = `<br><span style="display:block; margin-top:18px; color:#226423; font-weight:600;">!Sie haben sehr hohes Einsparpotential!</span>`;
+  }
+
+  if(currentMode === "kosten") {
+    document.getElementById('ergebnis-summary').innerHTML =
+      `Ihre <span style="color:#226423; font-weight:600;">CO₂-Kostenprognose</span> in den nächsten <span style="color:#226423; font-weight:600;">20 Jahren</span> ab <span style="color:#226423; font-weight:600;">${startjahr}</span> für Ihr Heizsystem <span style="color:#226423; font-weight:600;">${sysName}</span> beträgt ca. <span style="color:#226423; font-weight:600;">${val.toLocaleString("de-DE")} €</span>${extraText}`;
+  }
+}
+
+/* ----- Init / Events ----- */
+document.addEventListener('DOMContentLoaded',()=>{
+  updateStartjahr();
+  updateSystem();
+  updateEinheit();
+  updateChart();
+
+  ['system','einheit','verbrauch','startjahr','pv'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',()=>{
+      if(id==='system') updateEinheit();
+      updateChart();
+    });
+    document.getElementById(id).addEventListener('change',()=>{
+      if(id==='system') updateEinheit();
+      updateChart();
+    });
+  });
+  document.getElementById('toggle-mode').addEventListener('click',()=>{
+    currentMode = "co2";
+    updateChart();
+  });
+  document.getElementById('toggle-mode-co2').addEventListener('click',()=>{
+    currentMode = "kosten";
+    updateChart();
+  });
+});
+</script>
+</body>
+</html>
